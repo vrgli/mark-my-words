@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mark My Words</title>
+<link rel="icon" href="data:,">
+<style>
+  :root{--bg:#111;--fg:#f4f1ea;--mut:#9a9a94;--y:#ffd400;--card:#1b1b1b;--line:#2c2c2c}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.45 system-ui,sans-serif}
+  header{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid var(--line)}
+  h1{font-size:18px;margin:0}
+  main{display:grid;grid-template-columns:260px 1fr;min-height:calc(100vh - 100px)}
+  @media(max-width:800px){main{grid-template-columns:1fr}}
+  aside{border-right:1px solid var(--line);padding:14px}
+  .person{display:block;width:100%;text-align:left;background:none;border:0;color:var(--fg);padding:10px;border-radius:8px;font:inherit;cursor:pointer}
+  .person.on{background:var(--card);outline:1px solid var(--y)}
+  button.b,label.b{background:var(--y);color:#111;border:0;border-radius:8px;padding:8px 12px;font:600 14px system-ui;cursor:pointer;display:inline-block}
+  button.g{background:none;color:var(--fg);border:1px solid var(--line)}
+  .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+  section{padding:18px;max-width:760px}
+  input[type=text],textarea{width:100%;background:var(--card);border:1px solid var(--line);color:var(--fg);border-radius:8px;padding:10px;font:inherit}
+  textarea{min-height:90px}
+  svg{width:100%;max-width:380px;touch-action:none;display:block;margin:10px auto}
+  .dial{display:flex;align-items:center;gap:10px;margin:6px 0;font-size:14px}
+  .dial span:first-child{width:110px}
+  .dial input{flex:1;accent-color:var(--y)}
+  pre{white-space:pre-wrap;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:12px;font-size:14px}
+  footer{padding:14px 18px;color:var(--mut);font-size:13px;border-top:1px solid var(--line)}
+  footer a{color:var(--y)}
+  .hint{color:var(--mut);font-size:14px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Mark My Words</h1>
+  <div class="row" style="margin:0">
+    <button class="b g" id="exp">Export JSON</button>
+    <label class="b g" style="border:1px solid var(--line);background:none;color:var(--fg)">Import JSON<input id="imp" type="file" accept="application/json" hidden></label>
+  </div>
+</header>
+<main>
+  <aside>
+    <div id="list"></div>
+    <div class="row"><button class="b" id="add">+ Add person</button></div>
+    <p class="hint">Your data stays in this browser and in the JSON file you export. No account, no server.</p>
+  </aside>
+  <section id="edit"></section>
+</main>
+<footer>A VRG app · <a href="https://vrg.li">vrg.li</a> · free to use, free to fork · <a href="https://github.com/vrgli/mark-my-words">source</a></footer>
+
+<script>
+const DIALS=[
+  ['friendly','Friendly','Warm and chatty, or straight to business'],
+  ['tech','Tech savvy','Comfortable with jargon, or needs plain words'],
+  ['busy','Busy','Wants it short, or has time to read'],
+  ['hierarchy','Hierarchy','Formal and respectful of rank, or flat and casual'],
+  ['handholding','Handholding','Needs the steps spelled out, or just the goal'],
+  ['delegation','Delegation','Wants to decide, or prefers to hand it over']
+];
+const KEY='mmw-v1';
+let state=load();
+function load(){try{const s=JSON.parse(localStorage.getItem(KEY));if(s&&Array.isArray(s.people))return s}catch(e){}return{people:[],current:null}}
+function save(){localStorage.setItem(KEY,JSON.stringify(state))}
+function uid(){return Math.random().toString(36).slice(2,10)}
+function cur(){return state.people.find(p=>p.id===state.current)}
+const $=s=>document.querySelector(s);
+
+function renderList(){
+  const l=$('#list');l.innerHTML='';
+  state.people.forEach(p=>{
+    const b=document.createElement('button');
+    b.className='person'+(p.id===state.current?' on':'');
+    b.textContent=p.name||'(unnamed)';
+    b.onclick=()=>{state.current=p.id;save();render()};
+    l.appendChild(b);
+  });
+}
+
+const S=300,C=S/2,R=95,N=DIALS.length;
+const ang=i=>-Math.PI/2+i*2*Math.PI/N;
+const pt=(i,v)=>[C+Math.cos(ang(i))*R*v/10,C+Math.sin(ang(i))*R*v/10];
+const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const shapePts=p=>DIALS.map((d,i)=>pt(i,p.v[d[0]]).join(',')).join(' ');
+
+function radar(p){
+  let g='';
+  [2,4,6,8,10].forEach(r=>{g+=`<polygon points="${DIALS.map((_,i)=>pt(i,r).join(',')).join(' ')}" fill="none" stroke="#2c2c2c"/>`});
+  DIALS.forEach((d,i)=>{const [x,y]=pt(i,10);const [lx,ly]=pt(i,12.6);
+    g+=`<line x1="${C}" y1="${C}" x2="${x}" y2="${y}" stroke="#2c2c2c"/><text x="${lx}" y="${ly}" fill="#9a9a94" font-size="11" text-anchor="middle" dominant-baseline="middle">${d[1]}</text>`});
+  g+=`<polygon id="shape" points="${shapePts(p)}" fill="rgba(255,212,0,.25)" stroke="#ffd400" stroke-width="2"/>`;
+  DIALS.forEach((d,i)=>{const [x,y]=pt(i,p.v[d[0]]);g+=`<circle data-i="${i}" cx="${x}" cy="${y}" r="9" fill="#ffd400" style="cursor:grab"/>`});
+  return `<svg id="rd" viewBox="0 0 ${S} ${S}">${g}</svg>`;
+}
+
+// Update the radar, sliders and brief in place. The radar is never rebuilt while a
+// dot is being dragged, otherwise the browser loses the drag after the first step.
+function sync(p){
+  $('#shape').setAttribute('points',shapePts(p));
+  document.querySelectorAll('#rd circle[data-i]').forEach(c=>{const i=+c.dataset.i,[x,y]=pt(i,p.v[DIALS[i][0]]);c.setAttribute('cx',x);c.setAttribute('cy',y)});
+  document.querySelectorAll('#edit input[type=range]').forEach(r=>{r.value=p.v[r.dataset.k];$('#val-'+r.dataset.k).textContent=p.v[r.dataset.k]});
+  $('#br').textContent=brief(p);
+}
+
+function brief(p){
+  const v=p.v,out=[];
+  out.push(v.friendly>=7?'Open warmly and keep a human tone.':v.friendly<=3?'Skip the small talk and get to the point.':'Be polite and brief in the greeting.');
+  out.push(v.tech>=7?'Technical terms are fine.':v.tech<=3?'Use plain words and explain any jargon.':'Use jargon sparingly and explain new terms once.');
+  out.push(v.busy>=7?'They are busy: keep it short, lead with the ask or the answer.':v.busy<=3?'They have time: a fuller explanation is welcome.':'Keep it moderately short.');
+  out.push(v.hierarchy>=7?'Be formal and respectful of rank.':v.hierarchy<=3?'Keep it casual and on equal footing.':'A neutral, professional register works.');
+  out.push(v.handholding>=7?'Spell out the steps one by one and say what happens next.':v.handholding<=3?'State the goal and leave the how to them.':'Give the goal and the key steps only.');
+  out.push(v.delegation>=7?'Hand it over with a clear outcome and let them run.':v.delegation<=3?'Offer options and let them decide.':'Propose a default and invite changes.');
+  return `Write to ${p.name||'this person'} like this:\n- `+out.join('\n- ')+(p.note?`\n\nNote: ${p.note}`:'');
+}
+
+function renderEdit(){
+  const e=$('#edit'),p=cur();
+  if(!p){e.innerHTML='<p class="hint">Add a person to start. Drag the yellow dots on the radar to set how they like to be written to.</p>';return}
+  e.innerHTML=`
+    <input type="text" id="nm" placeholder="Name" value="${esc(p.name)}">
+    ${radar(p)}
+    ${DIALS.map(d=>`<div class="dial"><span>${d[1]}</span><input type="range" min="0" max="10" step="1" data-k="${d[0]}" value="${p.v[d[0]]}"><span id="val-${d[0]}" title="${esc(d[2])}">${p.v[d[0]]}</span></div>`).join('')}
+    <textarea id="nt" placeholder="Note (what they like, what to avoid)">${esc(p.note)}</textarea>
+    <div class="row"><button class="b" id="cp">Copy brief for your AI</button><button class="b g" id="del">Delete person</button></div>
+    <pre id="br"></pre>`;
+  $('#br').textContent=brief(p);
+  $('#nm').oninput=ev=>{p.name=ev.target.value;save();renderList();$('#br').textContent=brief(p)};
+  $('#nt').oninput=ev=>{p.note=ev.target.value;save();$('#br').textContent=brief(p)};
+  e.querySelectorAll('input[type=range]').forEach(r=>r.oninput=()=>{p.v[r.dataset.k]=+r.value;save();sync(p)});
+  $('#cp').onclick=async()=>{try{await navigator.clipboard.writeText(brief(p));$('#cp').textContent='Copied'}catch(x){}};
+  $('#del').onclick=()=>{if(confirm('Delete '+(p.name||'this person')+'?')){state.people=state.people.filter(q=>q!==p);state.current=state.people[0]?.id||null;save();render()}};
+  const svg=$('#rd');let drag=null;
+  svg.onpointerdown=ev=>{const i=ev.target.dataset&&ev.target.dataset.i;if(i!==undefined){drag=+i;svg.setPointerCapture(ev.pointerId);ev.preventDefault()}};
+  svg.onpointermove=ev=>{if(drag===null)return;
+    const r=svg.getBoundingClientRect(),k=S/r.width,x=(ev.clientX-r.left)*k-C,y=(ev.clientY-r.top)*k-C;
+    const a=ang(drag);
+    let v=(x*Math.cos(a)+y*Math.sin(a))/R*10;v=Math.max(0,Math.min(10,Math.round(v)));
+    if(p.v[DIALS[drag][0]]!==v){p.v[DIALS[drag][0]]=v;save();sync(p)}};
+  svg.onpointerup=svg.onpointercancel=()=>{drag=null};
+}
+
+function render(){renderList();renderEdit()}
+
+$('#add').onclick=()=>{
+  const v={};DIALS.forEach(d=>v[d[0]]=5);
+  const p={id:uid(),name:'',v,note:''};
+  state.people.push(p);state.current=p.id;save();render();$('#nm')?.focus();
+};
+$('#exp').onclick=()=>{
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([JSON.stringify(state,null,2)],{type:'application/json'}));
+  a.download='mark-my-words.json';a.click();
+};
+$('#imp').onchange=async ev=>{
+  const f=ev.target.files[0];if(!f)return;
+  try{const s=JSON.parse(await f.text());if(!Array.isArray(s.people))throw 0;
+    const people=s.people.filter(p=>p&&typeof p==='object').map(p=>{const v={};
+      DIALS.forEach(d=>{const n=Number(p.v&&p.v[d[0]]);v[d[0]]=Number.isFinite(n)?Math.max(0,Math.min(10,Math.round(n))):5});
+      return{id:String(p.id||uid()),name:String(p.name==null?'':p.name),v,note:String(p.note==null?'':p.note)}});
+    state={people,current:people[0]?people[0].id:null};save();render();
+  }catch(x){alert('That file is not a Mark My Words export.')}
+  ev.target.value='';
+};
+render();
+</script>
+</body>
+</html>
