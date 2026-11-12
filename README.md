@@ -9,18 +9,20 @@ Which six dials depends on who the person is to you. Pick one of seven sets when
 
 | Set | The six dials |
 |---|---|
-| Colleagues | Friendly · Tech savvy · Busy · Hierarchy · Handholding · Delegation |
-| Clients and customers | Warmth · Formality · Patience · Detail wanted · Reassurance needed · Decision speed |
-| Investors and board | Brevity · Numbers first · Risk appetite · Formality · Proof needed · Update frequency |
-| Team you lead | Autonomy · Directness · Encouragement · Pace · Structure · Feedback frequency |
-| Suppliers and partners | Firmness · Warmth · Formality · Speed · Written record · Flexibility |
-| Friends and family | Humour · Emotion · Directness · Brevity · Emoji and slang · Formality |
-| Public and audience | Expertise level · Attention span · Humour · Authority · Call to action · Formality |
+| 👔 Colleagues | 😊 Friendly · 💻 Tech savvy · ⏱️ Busy · 🪜 Hierarchy · 🤲 Handholding · 📤 Delegation |
+| 🤝 Clients and customers | ☀️ Warmth · 🎩 Formality · ⌛ Patience · 🔍 Detail wanted · 🛟 Reassurance needed · ⚡ Decision speed |
+| 📈 Investors and board | ✂️ Brevity · 🔢 Numbers first · 🎲 Risk appetite · 🎩 Formality · 🧾 Proof needed · 🔄 Update frequency |
+| 👥 Team you lead | 🪁 Autonomy · 🎯 Directness · 👏 Encouragement · 🏃 Pace · 🧱 Structure · 🔁 Feedback frequency |
+| 📦 Suppliers and partners | ✊ Firmness · ☀️ Warmth · 🎩 Formality · ⚡ Speed · 📝 Written record · 🤸 Flexibility |
+| ❤️ Friends and family | 😄 Humour · 💗 Emotion · 🎯 Directness · ✂️ Brevity · 🤙 Emoji and slang · 🎩 Formality |
+| 📣 Public and audience | 🎓 Expertise level · 👀 Attention span · 😄 Humour · 🏛️ Authority · 👉 Call to action · 🎩 Formality |
+
+Every set and every dial has its own icon, on the radar, on the sliders and in the brief you copy.
 
 Local-first: no sign-in, no server, no telemetry. Your data stays in your browser and in a JSON
 file you export and own.
 
-**Status: v0.2 is out.**
+**Status: v0.2.1 is out.**
 
 - **Try it:** https://vrgli.github.io/mark-my-words/
 - **Download:** the zip on the [Releases](https://github.com/vrgli/mark-my-words/releases) page

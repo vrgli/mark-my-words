@@ -29,7 +29,8 @@
   .field label{display:block;font-size:13px;color:var(--mut);margin-bottom:4px}
   svg{width:100%;max-width:380px;touch-action:none;display:block;margin:10px auto}
   .dial{display:flex;align-items:center;gap:10px;margin:6px 0;font-size:14px}
-  .dial span:first-child{width:132px}
+  .dial span:first-child{width:150px;display:flex;align-items:baseline;gap:6px}
+  .dial span:first-child i{font-style:normal;width:18px;flex:none;text-align:center}
   .dial input{flex:1;accent-color:var(--y)}
   pre{white-space:pre-wrap;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:12px;font-size:14px}
   footer{padding:14px 18px;color:var(--mut);font-size:13px;border-top:1px solid var(--line)}
@@ -57,63 +58,64 @@
   </aside>
   <section id="edit"></section>
 </main>
-<footer>A VRG app · <a href="https://vrg.li">vrg.li</a> · free to use, free to fork · <a href="https://github.com/vrgli/mark-my-words">source</a> · v0.2</footer>
+<footer>A VRG app · <a href="https://vrg.li">vrg.li</a> · free to use, free to fork · <a href="https://github.com/vrgli/mark-my-words">source</a> · v0.2.1</footer>
 
 <div class="ov" id="ov" hidden><div class="mod" id="mod"></div></div>
 
 <script>
 /* Seven fixed sets of six dials. A person belongs to exactly one set.
-   dial = [label, hint, low (0-3), middle (4-6), high (7-10)] */
+   Every set and every dial carries its own icon.
+   dial = [icon, label, hint, low (0-3), middle (4-6), high (7-10)] */
 const SETS=[
- {id:'colleagues',name:'Colleagues',dials:[
-  ['Friendly','Warm and chatty, or straight to business','Skip the small talk and get to the point.','Be polite and brief in the greeting.','Open warmly and keep a human tone.'],
-  ['Tech savvy','Comfortable with jargon, or needs plain words','Use plain words and explain any jargon.','Use jargon sparingly and explain new terms once.','Technical terms are fine.'],
-  ['Busy','Wants it short, or has time to read','They have time: a fuller explanation is welcome.','Keep it moderately short.','They are busy: keep it short, lead with the ask or the answer.'],
-  ['Hierarchy','Formal and respectful of rank, or flat and casual','Keep it casual and on equal footing.','A neutral, professional register works.','Be formal and respectful of rank.'],
-  ['Handholding','Needs the steps spelled out, or just the goal','State the goal and leave the how to them.','Give the goal and the key steps only.','Spell out the steps one by one and say what happens next.'],
-  ['Delegation','Wants to decide, or prefers to hand it over','Offer options and let them decide.','Propose a default and invite changes.','Hand it over with a clear outcome and let them run.']]},
- {id:'clients',name:'Clients and customers',dials:[
-  ['Warmth','Personal and friendly, or purely businesslike','Stay businesslike and factual.','Friendly, but efficient.','Be warm and personal: use their name, thank them.'],
-  ['Formality','Full sentences and sign-offs, or relaxed wording','Relaxed, conversational wording is fine.','Professional but not stiff.','Full sentences, no slang, a proper sign-off.'],
-  ['Patience','How long they are willing to wait for the point','They want the answer now: put it in the first line.','Answer first, then a short explanation.','They can wait: set out the full picture.'],
-  ['Detail wanted','Headline only, or every number and date','Headline only, details on request.','The main points plus one level of detail.','Give the numbers, the dates and the small print.'],
-  ['Reassurance needed','Needs to be told it is under control','No hand-holding needed: state the facts.','Add one line of reassurance at the end.','Say clearly what is under control and what happens next.'],
-  ['Decision speed','Decides fast, or needs time','Give them room and time to think it over.','Propose a next step without pushing.','Ask for the decision directly, with a date.']]},
- {id:'investors',name:'Investors and board',dials:[
-  ['Brevity','One screen, or a full write-up','A fuller write-up is welcome.','Short, with the rest in an appendix.','One screen at most: cut everything else.'],
-  ['Numbers first','Opens with figures, or with the story','Tell the story; use numbers to back it up.','One headline number, then the story.','Open with the numbers, prose after.'],
-  ['Risk appetite','Wants the risk named, or wants the safe view','Lead with what is safe and what is covered.','Name the risk and the mitigation together.','Be frank about the risk and the upside.'],
-  ['Formality','Titles and formal wording, or plain talk','Direct and plain is fine.','Businesslike, no ceremony.','Formal: titles, full sentences, no jokes.'],
-  ['Proof needed','Every claim sourced, or your word is enough','Your judgement is enough.','Evidence for the main claim only.','Back every claim with data or a source.'],
-  ['Update frequency','Wants to hear from you often, or only on news','Write only when something real has happened.','Update at the agreed rhythm, no more.','They expect frequent updates: send one even in a quiet week.']]},
- {id:'team',name:'Team you lead',dials:[
-  ['Autonomy','Give the outcome, or walk through the how','Walk through the how with them.','Agree the approach, then let them run it.','Give the outcome and get out of the way.'],
-  ['Directness','Says it plainly, or needs it softened','Soften it: ask, suggest, give the context first.','Be clear, but lead in gently.','Say the thing plainly, no cushioning.'],
-  ['Encouragement','Wants credit first, or just the work','Skip the praise, they want the work.','One honest word of credit, then on with it.','Name what they did well before anything else.'],
-  ['Pace','Fast and short, or calm and roomy','Give them room: no artificial urgency.','Steady, with clear priorities.','Move fast: short messages, quick turnarounds.'],
-  ['Structure','Numbered steps, or a loose brief','A loose brief is enough.','Bullets for the main points.','Numbered steps, with owners and dates.'],
-  ['Feedback frequency','Check in often, or only at the end','Feedback at the end, not along the way.','Feedback at the obvious milestones.','Check in often and say how it is going.']]},
- {id:'suppliers',name:'Suppliers and partners',dials:[
-  ['Firmness','States the requirement, or keeps it open','Keep it collaborative and open.','Be clear about what you need, without pressure.','State the requirement and the consequence; do not hedge.'],
-  ['Warmth','Keeps the relationship warm, or transactional','Keep it transactional.','Cordial and professional.','Keep the relationship warm; acknowledge their side.'],
-  ['Formality','Formal wording and references, or plain','Plain and casual is fine.','Businesslike.','Formal wording, references, a proper sign-off.'],
-  ['Speed','Needs it now, or a comfortable window','No rush: give a comfortable window.','Name a date, allow some slack.','Say when you need it and ask them to confirm.'],
-  ['Written record','Everything in writing, or a quick word','A quick message is enough.','Confirm the key points in writing.','Put everything in writing and summarise what was agreed.'],
-  ['Flexibility','Room to negotiate, or hold the terms','Hold the line on the terms.','Offer one alternative, no more.','Offer options and room to negotiate.']]},
- {id:'friends',name:'Friends and family',dials:[
-  ['Humour','Jokes around, or plays it straight','Play it straight.','A light touch, nothing forced.','Joke around and keep it light.'],
-  ['Emotion','Says how they feel, or keeps it out','Keep feelings out of it.','A warm line, then the point.','Say how you feel and ask how they are.'],
-  ['Directness','Just say it, or go gently','Go gently and give the context first.','Clear, but kindly put.','Just say it.'],
-  ['Brevity','Two lines, or a long chatty message','A long, chatty message is welcome.','A short paragraph.','Keep it to a couple of lines.'],
-  ['Emoji and slang','Emoji and slang, or written out properly','Write it out properly, no emoji.','The odd emoji, no slang.','Emoji and slang are fine.'],
-  ['Formality','Respectful tone, or completely informal','Completely informal.','Relaxed but not sloppy.','Keep a respectful tone.']]},
- {id:'public',name:'Public and audience',dials:[
-  ['Expertise level','Knows the field, or coming in cold','Explain from scratch, no jargon.','Explain the terms you need, once.','Assume they know the field: skip the basics.'],
-  ['Attention span','Will read on, or needs hooking fast','Hook them in the first line and keep it short.','Short paragraphs, a strong opening.','They will read on: a longer piece works.'],
-  ['Humour','Funny, or serious','Keep it serious.','One light line is enough.','Be funny: it earns the read.'],
-  ['Authority','Speaks with authority, or invites debate','Be humble and invite replies.','Confident, but open to debate.','State it with authority; do not ask permission.'],
-  ['Call to action','Ends with an ask, or just the idea','No ask: leave them with the idea.','A soft invitation at the end.','End with one clear thing to do.'],
-  ['Formality','Polished, or casual like talking','Casual, like talking.','Clean and plain.','Polished and formal.']]}
+ {id:'colleagues',name:'Colleagues',icon:'\u{1F454}',dials:[
+  ['\u{1F60A}','Friendly','Warm and chatty, or straight to business','Skip the small talk and get to the point.','Be polite and brief in the greeting.','Open warmly and keep a human tone.'],
+  ['\u{1F4BB}','Tech savvy','Comfortable with jargon, or needs plain words','Use plain words and explain any jargon.','Use jargon sparingly and explain new terms once.','Technical terms are fine.'],
+  ['\u{23F1}\uFE0F','Busy','Wants it short, or has time to read','They have time: a fuller explanation is welcome.','Keep it moderately short.','They are busy: keep it short, lead with the ask or the answer.'],
+  ['\u{1FA9C}','Hierarchy','Formal and respectful of rank, or flat and casual','Keep it casual and on equal footing.','A neutral, professional register works.','Be formal and respectful of rank.'],
+  ['\u{1F932}','Handholding','Needs the steps spelled out, or just the goal','State the goal and leave the how to them.','Give the goal and the key steps only.','Spell out the steps one by one and say what happens next.'],
+  ['\u{1F4E4}','Delegation','Wants to decide, or prefers to hand it over','Offer options and let them decide.','Propose a default and invite changes.','Hand it over with a clear outcome and let them run.']]},
+ {id:'clients',name:'Clients and customers',icon:'\u{1F91D}',dials:[
+  ['\u2600\uFE0F','Warmth','Personal and friendly, or purely businesslike','Stay businesslike and factual.','Friendly, but efficient.','Be warm and personal: use their name, thank them.'],
+  ['\u{1F3A9}','Formality','Full sentences and sign-offs, or relaxed wording','Relaxed, conversational wording is fine.','Professional but not stiff.','Full sentences, no slang, a proper sign-off.'],
+  ['\u231B','Patience','How long they are willing to wait for the point','They want the answer now: put it in the first line.','Answer first, then a short explanation.','They can wait: set out the full picture.'],
+  ['\u{1F50D}','Detail wanted','Headline only, or every number and date','Headline only, details on request.','The main points plus one level of detail.','Give the numbers, the dates and the small print.'],
+  ['\u{1F6DF}','Reassurance needed','Needs to be told it is under control','No hand-holding needed: state the facts.','Add one line of reassurance at the end.','Say clearly what is under control and what happens next.'],
+  ['\u26A1','Decision speed','Decides fast, or needs time','Give them room and time to think it over.','Propose a next step without pushing.','Ask for the decision directly, with a date.']]},
+ {id:'investors',name:'Investors and board',icon:'\u{1F4C8}',dials:[
+  ['\u2702\uFE0F','Brevity','One screen, or a full write-up','A fuller write-up is welcome.','Short, with the rest in an appendix.','One screen at most: cut everything else.'],
+  ['\u{1F522}','Numbers first','Opens with figures, or with the story','Tell the story; use numbers to back it up.','One headline number, then the story.','Open with the numbers, prose after.'],
+  ['\u{1F3B2}','Risk appetite','Wants the risk named, or wants the safe view','Lead with what is safe and what is covered.','Name the risk and the mitigation together.','Be frank about the risk and the upside.'],
+  ['\u{1F3A9}','Formality','Titles and formal wording, or plain talk','Direct and plain is fine.','Businesslike, no ceremony.','Formal: titles, full sentences, no jokes.'],
+  ['\u{1F9FE}','Proof needed','Every claim sourced, or your word is enough','Your judgement is enough.','Evidence for the main claim only.','Back every claim with data or a source.'],
+  ['\u{1F504}','Update frequency','Wants to hear from you often, or only on news','Write only when something real has happened.','Update at the agreed rhythm, no more.','They expect frequent updates: send one even in a quiet week.']]},
+ {id:'team',name:'Team you lead',icon:'\u{1F465}',dials:[
+  ['\u{1FA81}','Autonomy','Give the outcome, or walk through the how','Walk through the how with them.','Agree the approach, then let them run it.','Give the outcome and get out of the way.'],
+  ['\u{1F3AF}','Directness','Says it plainly, or needs it softened','Soften it: ask, suggest, give the context first.','Be clear, but lead in gently.','Say the thing plainly, no cushioning.'],
+  ['\u{1F44F}','Encouragement','Wants credit first, or just the work','Skip the praise, they want the work.','One honest word of credit, then on with it.','Name what they did well before anything else.'],
+  ['\u{1F3C3}','Pace','Fast and short, or calm and roomy','Give them room: no artificial urgency.','Steady, with clear priorities.','Move fast: short messages, quick turnarounds.'],
+  ['\u{1F9F1}','Structure','Numbered steps, or a loose brief','A loose brief is enough.','Bullets for the main points.','Numbered steps, with owners and dates.'],
+  ['\u{1F501}','Feedback frequency','Check in often, or only at the end','Feedback at the end, not along the way.','Feedback at the obvious milestones.','Check in often and say how it is going.']]},
+ {id:'suppliers',name:'Suppliers and partners',icon:'\u{1F4E6}',dials:[
+  ['\u270A','Firmness','States the requirement, or keeps it open','Keep it collaborative and open.','Be clear about what you need, without pressure.','State the requirement and the consequence; do not hedge.'],
+  ['\u2600\uFE0F','Warmth','Keeps the relationship warm, or transactional','Keep it transactional.','Cordial and professional.','Keep the relationship warm; acknowledge their side.'],
+  ['\u{1F3A9}','Formality','Formal wording and references, or plain','Plain and casual is fine.','Businesslike.','Formal wording, references, a proper sign-off.'],
+  ['\u26A1','Speed','Needs it now, or a comfortable window','No rush: give a comfortable window.','Name a date, allow some slack.','Say when you need it and ask them to confirm.'],
+  ['\u{1F4DD}','Written record','Everything in writing, or a quick word','A quick message is enough.','Confirm the key points in writing.','Put everything in writing and summarise what was agreed.'],
+  ['\u{1F938}','Flexibility','Room to negotiate, or hold the terms','Hold the line on the terms.','Offer one alternative, no more.','Offer options and room to negotiate.']]},
+ {id:'friends',name:'Friends and family',icon:'\u2764\uFE0F',dials:[
+  ['\u{1F604}','Humour','Jokes around, or plays it straight','Play it straight.','A light touch, nothing forced.','Joke around and keep it light.'],
+  ['\u{1F497}','Emotion','Says how they feel, or keeps it out','Keep feelings out of it.','A warm line, then the point.','Say how you feel and ask how they are.'],
+  ['\u{1F3AF}','Directness','Just say it, or go gently','Go gently and give the context first.','Clear, but kindly put.','Just say it.'],
+  ['\u2702\uFE0F','Brevity','Two lines, or a long chatty message','A long, chatty message is welcome.','A short paragraph.','Keep it to a couple of lines.'],
+  ['\u{1F919}','Emoji and slang','Emoji and slang, or written out properly','Write it out properly, no emoji.','The odd emoji, no slang.','Emoji and slang are fine.'],
+  ['\u{1F3A9}','Formality','Respectful tone, or completely informal','Completely informal.','Relaxed but not sloppy.','Keep a respectful tone.']]},
+ {id:'public',name:'Public and audience',icon:'\u{1F4E3}',dials:[
+  ['\u{1F393}','Expertise level','Knows the field, or coming in cold','Explain from scratch, no jargon.','Explain the terms you need, once.','Assume they know the field: skip the basics.'],
+  ['\u{1F440}','Attention span','Will read on, or needs hooking fast','Hook them in the first line and keep it short.','Short paragraphs, a strong opening.','They will read on: a longer piece works.'],
+  ['\u{1F604}','Humour','Funny, or serious','Keep it serious.','One light line is enough.','Be funny: it earns the read.'],
+  ['\u{1F3DB}\uFE0F','Authority','Speaks with authority, or invites debate','Be humble and invite replies.','Confident, but open to debate.','State it with authority; do not ask permission.'],
+  ['\u{1F449}','Call to action','Ends with an ask, or just the idea','No ask: leave them with the idea.','A soft invitation at the end.','End with one clear thing to do.'],
+  ['\u{1F3A9}','Formality','Polished, or casual like talking','Casual, like talking.','Clean and plain.','Polished and formal.']]}
 ];
 const DEFAULT_SET='colleagues';
 /* v0.1 stored six named values and no set. Those people load as Colleagues. */
@@ -159,8 +161,9 @@ function modal(html){$('#mod').innerHTML=html;$('#ov').hidden=false}
 function closeModal(){$('#ov').hidden=true;$('#mod').innerHTML=''}
 $('#ov').onclick=ev=>{if(ev.target===$('#ov'))closeModal()};
 document.addEventListener('keydown',ev=>{if(ev.key==='Escape'&&!$('#ov').hidden)closeModal()});
-const setOptions=sel=>SETS.map(s=>`<option value="${s.id}"${s.id===sel?' selected':''}>${esc(s.name)}</option>`).join('');
-const dialNames=id=>setById(id).dials.map(d=>d[0]).join(' · ');
+const setOptions=sel=>SETS.map(s=>`<option value="${s.id}"${s.id===sel?' selected':''}>${s.icon} ${esc(s.name)}</option>`).join('');
+const setLabel=id=>{const s=setById(id);return s.icon+' '+s.name};
+const dialNames=id=>setById(id).dials.map(d=>d[0]+' '+d[1]).join(' · ');
 
 /* ---- people list ---- */
 function renderList(){
@@ -168,7 +171,7 @@ function renderList(){
   state.people.forEach(p=>{
     const b=document.createElement('button');
     b.className='person'+(p.id===state.current?' on':'');
-    b.innerHTML=esc(p.name||'(unnamed)')+'<small>'+esc(setOf(p).name)+'</small>';
+    b.innerHTML=esc(p.name||'(unnamed)')+'<small>'+setOf(p).icon+' '+esc(setOf(p).name)+'</small>';
     b.onclick=()=>{state.current=p.id;save();render()};
     l.appendChild(b);
   });
@@ -189,11 +192,11 @@ function radar(p){
   const dials=setOf(p).dials;let g='';
   [2,4,6,8,10].forEach(r=>{g+=`<polygon points="${dials.map((_,i)=>pt(i,r).join(',')).join(' ')}" fill="none" stroke="#2c2c2c"/>`});
   dials.forEach((d,i)=>{
-    const[x,y]=pt(i,10),[lx,ly]=pt(i,13);
-    const lines=labelLines(d[0]);
+    const[x,y]=pt(i,10),[lx,ly]=pt(i,13.2);
+    const parts=[d[0]].concat(labelLines(d[1]));   // icon first, then the label
     g+=`<line x1="${C}" y1="${C}" x2="${x}" y2="${y}" stroke="#2c2c2c"/>`;
     g+=`<text x="${lx}" y="${ly}" fill="#9a9a94" font-size="10" text-anchor="middle" dominant-baseline="middle">`+
-       lines.map((ln,k)=>`<tspan x="${lx}" dy="${k===0?(lines.length>1?-5:0):11}">${esc(ln)}</tspan>`).join('')+`</text>`;
+       parts.map((t,k)=>`<tspan x="${lx}"${k===0?' font-size="13"':''} dy="${k===0?-(parts.length-1)*5.5:11}">${esc(t)}</tspan>`).join('')+`</text>`;
   });
   g+=`<polygon id="shape" points="${shapePts(p)}" fill="rgba(255,212,0,.25)" stroke="#ffd400" stroke-width="2"/>`;
   p.v.forEach((v,i)=>{const[x,y]=pt(i,v);g+=`<circle data-i="${i}" cx="${x}" cy="${y}" r="9" fill="#ffd400" style="cursor:grab"/>`});
@@ -211,18 +214,18 @@ function sync(p){
 
 function brief(p){
   const s=setOf(p);
-  const out=s.dials.map((d,i)=>{const v=p.v[i];return v>=7?d[4]:v<=3?d[2]:d[3]});
-  return`Write to ${p.name||'this person'} — ${s.name} — like this:\n- `+out.join('\n- ')+(p.note?`\n\nNote: ${p.note}`:'');
+  const out=s.dials.map((d,i)=>{const v=p.v[i];return d[0]+' '+(v>=7?d[5]:v<=3?d[3]:d[4])});
+  return`${s.icon} Write to ${p.name||'this person'} — ${s.name} — like this:\n- `+out.join('\n- ')+(p.note?`\n\n📝 Note: ${p.note}`:'');
 }
 
 /* ---- changing the set: warn, then reset every dial ---- */
 function askChangeSet(p,newId){
   const to=setById(newId);
-  modal(`<h2>Change the set?</h2>
-    <p>${esc(p.name||'This person')} is set to <strong>${esc(setOf(p).name)}</strong>. Changing to <strong>${esc(to.name)}</strong> gives six different dials.</p>
+  modal(`<h2>⚠️ Change the set?</h2>
+    <p>${esc(p.name||'This person')} is set to <strong>${setLabel(p.set)}</strong>. Changing to <strong>${setLabel(newId)}</strong> gives six different dials.</p>
     <p class="warn"><strong>The current dial values will be lost.</strong> All six dials start again at 5, including any dial with the same name in both sets. This cannot be undone.</p>
     <p class="hint">New dials: ${esc(dialNames(newId))}</p>
-    <div class="row"><button class="b" id="okset">Change set and reset dials</button><button class="b g" id="noset">Keep ${esc(setOf(p).name)}</button></div>`);
+    <div class="row"><button class="b" id="okset">Change set and reset dials</button><button class="b g" id="noset">Keep ${setLabel(p.set)}</button></div>`);
   $('#okset').onclick=()=>{p.set=newId;p.v=freshValues();save();closeModal();render()};
   $('#noset').onclick=()=>{closeModal();render()};
 }
@@ -236,7 +239,7 @@ function renderEdit(){
     <input type="text" id="nm" placeholder="Name" value="${esc(p.name)}">
     <div class="field"><label for="setsel">Set of dials</label><select id="setsel">${setOptions(p.set)}</select></div>
     ${radar(p)}
-    ${dials.map((d,i)=>`<div class="dial"><span title="${esc(d[1])}">${esc(d[0])}</span><input type="range" min="0" max="10" step="1" data-i="${i}" value="${p.v[i]}"><span id="val-${i}" title="${esc(d[1])}">${p.v[i]}</span></div>`).join('')}
+    ${dials.map((d,i)=>`<div class="dial"><span title="${esc(d[2])}"><i>${d[0]}</i>${esc(d[1])}</span><input type="range" min="0" max="10" step="1" data-i="${i}" value="${p.v[i]}"><span id="val-${i}" title="${esc(d[2])}">${p.v[i]}</span></div>`).join('')}
     <textarea id="nt" placeholder="Note (what they like, what to avoid)">${esc(p.note)}</textarea>
     <div class="row"><button class="b" id="cp">Copy brief for your AI</button><button class="b g" id="del">Delete person</button></div>
     <pre id="br"></pre>`;
@@ -263,7 +266,7 @@ function render(){renderList();renderEdit()}
 
 /* ---- adding a person: name and set together ---- */
 $('#add').onclick=()=>{
-  modal(`<h2>Add a person</h2>
+  modal(`<h2>👤 Add a person</h2>
     <div class="field"><label for="newname">Name</label><input type="text" id="newname" placeholder="Name"></div>
     <div class="field"><label for="newset">Who are they to you? This picks the six dials.</label><select id="newset">${setOptions(DEFAULT_SET)}</select></div>
     <p class="hint" id="newdials">${esc(dialNames(DEFAULT_SET))}</p>
