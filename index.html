@@ -11,25 +11,34 @@
   body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.45 system-ui,sans-serif}
   header{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid var(--line)}
   h1{font-size:18px;margin:0}
+  h2{font-size:17px;margin:0 0 10px}
   main{display:grid;grid-template-columns:260px 1fr;min-height:calc(100vh - 100px)}
   @media(max-width:800px){main{grid-template-columns:1fr}}
   aside{border-right:1px solid var(--line);padding:14px}
   .person{display:block;width:100%;text-align:left;background:none;border:0;color:var(--fg);padding:10px;border-radius:8px;font:inherit;cursor:pointer}
   .person.on{background:var(--card);outline:1px solid var(--y)}
+  .person small{display:block;color:var(--mut);font-size:12px}
   button.b,label.b{background:var(--y);color:#111;border:0;border-radius:8px;padding:8px 12px;font:600 14px system-ui;cursor:pointer;display:inline-block}
   button.g{background:none;color:var(--fg);border:1px solid var(--line)}
   .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
   section{padding:18px;max-width:760px}
-  input[type=text],textarea{width:100%;background:var(--card);border:1px solid var(--line);color:var(--fg);border-radius:8px;padding:10px;font:inherit}
+  input[type=text],textarea,select{width:100%;background:var(--card);border:1px solid var(--line);color:var(--fg);border-radius:8px;padding:10px;font:inherit}
   textarea{min-height:90px}
+  select{cursor:pointer}
+  .field{margin-top:10px}
+  .field label{display:block;font-size:13px;color:var(--mut);margin-bottom:4px}
   svg{width:100%;max-width:380px;touch-action:none;display:block;margin:10px auto}
   .dial{display:flex;align-items:center;gap:10px;margin:6px 0;font-size:14px}
-  .dial span:first-child{width:110px}
+  .dial span:first-child{width:132px}
   .dial input{flex:1;accent-color:var(--y)}
   pre{white-space:pre-wrap;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:12px;font-size:14px}
   footer{padding:14px 18px;color:var(--mut);font-size:13px;border-top:1px solid var(--line)}
   footer a{color:var(--y)}
   .hint{color:var(--mut);font-size:14px}
+  .ov{position:fixed;inset:0;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;padding:16px;z-index:9}
+  .ov[hidden]{display:none}
+  .mod{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px;width:100%;max-width:440px}
+  .warn{border-left:3px solid var(--y);padding-left:10px;margin:10px 0}
 </style>
 </head>
 <body>
@@ -48,86 +57,196 @@
   </aside>
   <section id="edit"></section>
 </main>
-<footer>A VRG app · <a href="https://vrg.li">vrg.li</a> · free to use, free to fork · <a href="https://github.com/vrgli/mark-my-words">source</a></footer>
+<footer>A VRG app · <a href="https://vrg.li">vrg.li</a> · free to use, free to fork · <a href="https://github.com/vrgli/mark-my-words">source</a> · v0.2</footer>
+
+<div class="ov" id="ov" hidden><div class="mod" id="mod"></div></div>
 
 <script>
-const DIALS=[
-  ['friendly','Friendly','Warm and chatty, or straight to business'],
-  ['tech','Tech savvy','Comfortable with jargon, or needs plain words'],
-  ['busy','Busy','Wants it short, or has time to read'],
-  ['hierarchy','Hierarchy','Formal and respectful of rank, or flat and casual'],
-  ['handholding','Handholding','Needs the steps spelled out, or just the goal'],
-  ['delegation','Delegation','Wants to decide, or prefers to hand it over']
+/* Seven fixed sets of six dials. A person belongs to exactly one set.
+   dial = [label, hint, low (0-3), middle (4-6), high (7-10)] */
+const SETS=[
+ {id:'colleagues',name:'Colleagues',dials:[
+  ['Friendly','Warm and chatty, or straight to business','Skip the small talk and get to the point.','Be polite and brief in the greeting.','Open warmly and keep a human tone.'],
+  ['Tech savvy','Comfortable with jargon, or needs plain words','Use plain words and explain any jargon.','Use jargon sparingly and explain new terms once.','Technical terms are fine.'],
+  ['Busy','Wants it short, or has time to read','They have time: a fuller explanation is welcome.','Keep it moderately short.','They are busy: keep it short, lead with the ask or the answer.'],
+  ['Hierarchy','Formal and respectful of rank, or flat and casual','Keep it casual and on equal footing.','A neutral, professional register works.','Be formal and respectful of rank.'],
+  ['Handholding','Needs the steps spelled out, or just the goal','State the goal and leave the how to them.','Give the goal and the key steps only.','Spell out the steps one by one and say what happens next.'],
+  ['Delegation','Wants to decide, or prefers to hand it over','Offer options and let them decide.','Propose a default and invite changes.','Hand it over with a clear outcome and let them run.']]},
+ {id:'clients',name:'Clients and customers',dials:[
+  ['Warmth','Personal and friendly, or purely businesslike','Stay businesslike and factual.','Friendly, but efficient.','Be warm and personal: use their name, thank them.'],
+  ['Formality','Full sentences and sign-offs, or relaxed wording','Relaxed, conversational wording is fine.','Professional but not stiff.','Full sentences, no slang, a proper sign-off.'],
+  ['Patience','How long they are willing to wait for the point','They want the answer now: put it in the first line.','Answer first, then a short explanation.','They can wait: set out the full picture.'],
+  ['Detail wanted','Headline only, or every number and date','Headline only, details on request.','The main points plus one level of detail.','Give the numbers, the dates and the small print.'],
+  ['Reassurance needed','Needs to be told it is under control','No hand-holding needed: state the facts.','Add one line of reassurance at the end.','Say clearly what is under control and what happens next.'],
+  ['Decision speed','Decides fast, or needs time','Give them room and time to think it over.','Propose a next step without pushing.','Ask for the decision directly, with a date.']]},
+ {id:'investors',name:'Investors and board',dials:[
+  ['Brevity','One screen, or a full write-up','A fuller write-up is welcome.','Short, with the rest in an appendix.','One screen at most: cut everything else.'],
+  ['Numbers first','Opens with figures, or with the story','Tell the story; use numbers to back it up.','One headline number, then the story.','Open with the numbers, prose after.'],
+  ['Risk appetite','Wants the risk named, or wants the safe view','Lead with what is safe and what is covered.','Name the risk and the mitigation together.','Be frank about the risk and the upside.'],
+  ['Formality','Titles and formal wording, or plain talk','Direct and plain is fine.','Businesslike, no ceremony.','Formal: titles, full sentences, no jokes.'],
+  ['Proof needed','Every claim sourced, or your word is enough','Your judgement is enough.','Evidence for the main claim only.','Back every claim with data or a source.'],
+  ['Update frequency','Wants to hear from you often, or only on news','Write only when something real has happened.','Update at the agreed rhythm, no more.','They expect frequent updates: send one even in a quiet week.']]},
+ {id:'team',name:'Team you lead',dials:[
+  ['Autonomy','Give the outcome, or walk through the how','Walk through the how with them.','Agree the approach, then let them run it.','Give the outcome and get out of the way.'],
+  ['Directness','Says it plainly, or needs it softened','Soften it: ask, suggest, give the context first.','Be clear, but lead in gently.','Say the thing plainly, no cushioning.'],
+  ['Encouragement','Wants credit first, or just the work','Skip the praise, they want the work.','One honest word of credit, then on with it.','Name what they did well before anything else.'],
+  ['Pace','Fast and short, or calm and roomy','Give them room: no artificial urgency.','Steady, with clear priorities.','Move fast: short messages, quick turnarounds.'],
+  ['Structure','Numbered steps, or a loose brief','A loose brief is enough.','Bullets for the main points.','Numbered steps, with owners and dates.'],
+  ['Feedback frequency','Check in often, or only at the end','Feedback at the end, not along the way.','Feedback at the obvious milestones.','Check in often and say how it is going.']]},
+ {id:'suppliers',name:'Suppliers and partners',dials:[
+  ['Firmness','States the requirement, or keeps it open','Keep it collaborative and open.','Be clear about what you need, without pressure.','State the requirement and the consequence; do not hedge.'],
+  ['Warmth','Keeps the relationship warm, or transactional','Keep it transactional.','Cordial and professional.','Keep the relationship warm; acknowledge their side.'],
+  ['Formality','Formal wording and references, or plain','Plain and casual is fine.','Businesslike.','Formal wording, references, a proper sign-off.'],
+  ['Speed','Needs it now, or a comfortable window','No rush: give a comfortable window.','Name a date, allow some slack.','Say when you need it and ask them to confirm.'],
+  ['Written record','Everything in writing, or a quick word','A quick message is enough.','Confirm the key points in writing.','Put everything in writing and summarise what was agreed.'],
+  ['Flexibility','Room to negotiate, or hold the terms','Hold the line on the terms.','Offer one alternative, no more.','Offer options and room to negotiate.']]},
+ {id:'friends',name:'Friends and family',dials:[
+  ['Humour','Jokes around, or plays it straight','Play it straight.','A light touch, nothing forced.','Joke around and keep it light.'],
+  ['Emotion','Says how they feel, or keeps it out','Keep feelings out of it.','A warm line, then the point.','Say how you feel and ask how they are.'],
+  ['Directness','Just say it, or go gently','Go gently and give the context first.','Clear, but kindly put.','Just say it.'],
+  ['Brevity','Two lines, or a long chatty message','A long, chatty message is welcome.','A short paragraph.','Keep it to a couple of lines.'],
+  ['Emoji and slang','Emoji and slang, or written out properly','Write it out properly, no emoji.','The odd emoji, no slang.','Emoji and slang are fine.'],
+  ['Formality','Respectful tone, or completely informal','Completely informal.','Relaxed but not sloppy.','Keep a respectful tone.']]},
+ {id:'public',name:'Public and audience',dials:[
+  ['Expertise level','Knows the field, or coming in cold','Explain from scratch, no jargon.','Explain the terms you need, once.','Assume they know the field: skip the basics.'],
+  ['Attention span','Will read on, or needs hooking fast','Hook them in the first line and keep it short.','Short paragraphs, a strong opening.','They will read on: a longer piece works.'],
+  ['Humour','Funny, or serious','Keep it serious.','One light line is enough.','Be funny: it earns the read.'],
+  ['Authority','Speaks with authority, or invites debate','Be humble and invite replies.','Confident, but open to debate.','State it with authority; do not ask permission.'],
+  ['Call to action','Ends with an ask, or just the idea','No ask: leave them with the idea.','A soft invitation at the end.','End with one clear thing to do.'],
+  ['Formality','Polished, or casual like talking','Casual, like talking.','Clean and plain.','Polished and formal.']]}
 ];
-const KEY='mmw-v1';
-let state=load();
-function load(){try{const s=JSON.parse(localStorage.getItem(KEY));if(s&&Array.isArray(s.people))return s}catch(e){}return{people:[],current:null}}
-function save(){localStorage.setItem(KEY,JSON.stringify(state))}
-function uid(){return Math.random().toString(36).slice(2,10)}
-function cur(){return state.people.find(p=>p.id===state.current)}
-const $=s=>document.querySelector(s);
+const DEFAULT_SET='colleagues';
+/* v0.1 stored six named values and no set. Those people load as Colleagues. */
+const V1KEYS=['friendly','tech','busy','hierarchy','handholding','delegation'];
+const KEY='mmw-v2',OLDKEY='mmw-v1';
 
+const $=s=>document.querySelector(s);
+const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const uid=()=>Math.random().toString(36).slice(2,10);
+const clamp=n=>Math.max(0,Math.min(10,Math.round(n)));
+const setById=id=>SETS.find(s=>s.id===id)||SETS[0];
+const setOf=p=>setById(p.set);
+const freshValues=()=>[5,5,5,5,5,5];
+
+function normPerson(p){
+  p=p&&typeof p==='object'?p:{};
+  const set=(typeof p.set==='string'&&SETS.some(s=>s.id===p.set))?p.set:DEFAULT_SET;
+  let raw=[];
+  if(Array.isArray(p.v))raw=p.v;
+  else if(p.v&&typeof p.v==='object')raw=V1KEYS.map(k=>p.v[k]);   // a v0.1 person
+  const v=[];
+  for(let i=0;i<6;i++){const n=Number(raw[i]);v.push(Number.isFinite(n)?clamp(n):5)}
+  return{id:String(p.id||uid()),name:String(p.name==null?'':p.name),set,v,note:String(p.note==null?'':p.note)};
+}
+function normState(s){
+  if(!s||!Array.isArray(s.people))return null;
+  const people=s.people.map(normPerson);
+  const current=people.some(p=>p.id===s.current)?s.current:(people[0]?people[0].id:null);
+  return{people,current};
+}
+function load(){
+  for(const k of [KEY,OLDKEY]){
+    try{const s=normState(JSON.parse(localStorage.getItem(k)));if(s)return s}catch(e){}
+  }
+  return{people:[],current:null};
+}
+let state=load();
+function save(){localStorage.setItem(KEY,JSON.stringify({version:2,people:state.people,current:state.current}))}
+function cur(){return state.people.find(p=>p.id===state.current)}
+
+/* ---- modal ---- */
+function modal(html){$('#mod').innerHTML=html;$('#ov').hidden=false}
+function closeModal(){$('#ov').hidden=true;$('#mod').innerHTML=''}
+$('#ov').onclick=ev=>{if(ev.target===$('#ov'))closeModal()};
+document.addEventListener('keydown',ev=>{if(ev.key==='Escape'&&!$('#ov').hidden)closeModal()});
+const setOptions=sel=>SETS.map(s=>`<option value="${s.id}"${s.id===sel?' selected':''}>${esc(s.name)}</option>`).join('');
+const dialNames=id=>setById(id).dials.map(d=>d[0]).join(' · ');
+
+/* ---- people list ---- */
 function renderList(){
   const l=$('#list');l.innerHTML='';
   state.people.forEach(p=>{
     const b=document.createElement('button');
     b.className='person'+(p.id===state.current?' on':'');
-    b.textContent=p.name||'(unnamed)';
+    b.innerHTML=esc(p.name||'(unnamed)')+'<small>'+esc(setOf(p).name)+'</small>';
     b.onclick=()=>{state.current=p.id;save();render()};
     l.appendChild(b);
   });
 }
 
-const S=300,C=S/2,R=95,N=DIALS.length;
+/* ---- radar ---- */
+const S=300,C=S/2,R=92,N=6;
 const ang=i=>-Math.PI/2+i*2*Math.PI/N;
 const pt=(i,v)=>[C+Math.cos(ang(i))*R*v/10,C+Math.sin(ang(i))*R*v/10];
-const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-const shapePts=p=>DIALS.map((d,i)=>pt(i,p.v[d[0]]).join(',')).join(' ');
-
+const shapePts=p=>p.v.map((v,i)=>pt(i,v).join(',')).join(' ');
+function labelLines(t){
+  if(t.length<=11||t.indexOf(' ')<0)return[t];
+  const w=t.split(' ');let at=1,diff=1e9;
+  for(let i=1;i<w.length;i++){const d=Math.abs(w.slice(0,i).join(' ').length-w.slice(i).join(' ').length);if(d<diff){diff=d;at=i}}
+  return[w.slice(0,at).join(' '),w.slice(at).join(' ')];
+}
 function radar(p){
-  let g='';
-  [2,4,6,8,10].forEach(r=>{g+=`<polygon points="${DIALS.map((_,i)=>pt(i,r).join(',')).join(' ')}" fill="none" stroke="#2c2c2c"/>`});
-  DIALS.forEach((d,i)=>{const [x,y]=pt(i,10);const [lx,ly]=pt(i,12.6);
-    g+=`<line x1="${C}" y1="${C}" x2="${x}" y2="${y}" stroke="#2c2c2c"/><text x="${lx}" y="${ly}" fill="#9a9a94" font-size="11" text-anchor="middle" dominant-baseline="middle">${d[1]}</text>`});
+  const dials=setOf(p).dials;let g='';
+  [2,4,6,8,10].forEach(r=>{g+=`<polygon points="${dials.map((_,i)=>pt(i,r).join(',')).join(' ')}" fill="none" stroke="#2c2c2c"/>`});
+  dials.forEach((d,i)=>{
+    const[x,y]=pt(i,10),[lx,ly]=pt(i,13);
+    const lines=labelLines(d[0]);
+    g+=`<line x1="${C}" y1="${C}" x2="${x}" y2="${y}" stroke="#2c2c2c"/>`;
+    g+=`<text x="${lx}" y="${ly}" fill="#9a9a94" font-size="10" text-anchor="middle" dominant-baseline="middle">`+
+       lines.map((ln,k)=>`<tspan x="${lx}" dy="${k===0?(lines.length>1?-5:0):11}">${esc(ln)}</tspan>`).join('')+`</text>`;
+  });
   g+=`<polygon id="shape" points="${shapePts(p)}" fill="rgba(255,212,0,.25)" stroke="#ffd400" stroke-width="2"/>`;
-  DIALS.forEach((d,i)=>{const [x,y]=pt(i,p.v[d[0]]);g+=`<circle data-i="${i}" cx="${x}" cy="${y}" r="9" fill="#ffd400" style="cursor:grab"/>`});
-  return `<svg id="rd" viewBox="0 0 ${S} ${S}">${g}</svg>`;
+  p.v.forEach((v,i)=>{const[x,y]=pt(i,v);g+=`<circle data-i="${i}" cx="${x}" cy="${y}" r="9" fill="#ffd400" style="cursor:grab"/>`});
+  return`<svg id="rd" viewBox="0 0 ${S} ${S}">${g}</svg>`;
 }
 
-// Update the radar, sliders and brief in place. The radar is never rebuilt while a
-// dot is being dragged, otherwise the browser loses the drag after the first step.
+/* Update radar, sliders and brief in place. The radar is never rebuilt while a dot
+   is being dragged, otherwise the browser loses the drag after the first step. */
 function sync(p){
   $('#shape').setAttribute('points',shapePts(p));
-  document.querySelectorAll('#rd circle[data-i]').forEach(c=>{const i=+c.dataset.i,[x,y]=pt(i,p.v[DIALS[i][0]]);c.setAttribute('cx',x);c.setAttribute('cy',y)});
-  document.querySelectorAll('#edit input[type=range]').forEach(r=>{r.value=p.v[r.dataset.k];$('#val-'+r.dataset.k).textContent=p.v[r.dataset.k]});
+  document.querySelectorAll('#rd circle[data-i]').forEach(c=>{const i=+c.dataset.i,[x,y]=pt(i,p.v[i]);c.setAttribute('cx',x);c.setAttribute('cy',y)});
+  document.querySelectorAll('#edit input[type=range]').forEach(r=>{const i=+r.dataset.i;r.value=p.v[i];$('#val-'+i).textContent=p.v[i]});
   $('#br').textContent=brief(p);
 }
 
 function brief(p){
-  const v=p.v,out=[];
-  out.push(v.friendly>=7?'Open warmly and keep a human tone.':v.friendly<=3?'Skip the small talk and get to the point.':'Be polite and brief in the greeting.');
-  out.push(v.tech>=7?'Technical terms are fine.':v.tech<=3?'Use plain words and explain any jargon.':'Use jargon sparingly and explain new terms once.');
-  out.push(v.busy>=7?'They are busy: keep it short, lead with the ask or the answer.':v.busy<=3?'They have time: a fuller explanation is welcome.':'Keep it moderately short.');
-  out.push(v.hierarchy>=7?'Be formal and respectful of rank.':v.hierarchy<=3?'Keep it casual and on equal footing.':'A neutral, professional register works.');
-  out.push(v.handholding>=7?'Spell out the steps one by one and say what happens next.':v.handholding<=3?'State the goal and leave the how to them.':'Give the goal and the key steps only.');
-  out.push(v.delegation>=7?'Hand it over with a clear outcome and let them run.':v.delegation<=3?'Offer options and let them decide.':'Propose a default and invite changes.');
-  return `Write to ${p.name||'this person'} like this:\n- `+out.join('\n- ')+(p.note?`\n\nNote: ${p.note}`:'');
+  const s=setOf(p);
+  const out=s.dials.map((d,i)=>{const v=p.v[i];return v>=7?d[4]:v<=3?d[2]:d[3]});
+  return`Write to ${p.name||'this person'} — ${s.name} — like this:\n- `+out.join('\n- ')+(p.note?`\n\nNote: ${p.note}`:'');
 }
 
+/* ---- changing the set: warn, then reset every dial ---- */
+function askChangeSet(p,newId){
+  const to=setById(newId);
+  modal(`<h2>Change the set?</h2>
+    <p>${esc(p.name||'This person')} is set to <strong>${esc(setOf(p).name)}</strong>. Changing to <strong>${esc(to.name)}</strong> gives six different dials.</p>
+    <p class="warn"><strong>The current dial values will be lost.</strong> All six dials start again at 5, including any dial with the same name in both sets. This cannot be undone.</p>
+    <p class="hint">New dials: ${esc(dialNames(newId))}</p>
+    <div class="row"><button class="b" id="okset">Change set and reset dials</button><button class="b g" id="noset">Keep ${esc(setOf(p).name)}</button></div>`);
+  $('#okset').onclick=()=>{p.set=newId;p.v=freshValues();save();closeModal();render()};
+  $('#noset').onclick=()=>{closeModal();render()};
+}
+
+/* ---- editor ---- */
 function renderEdit(){
   const e=$('#edit'),p=cur();
-  if(!p){e.innerHTML='<p class="hint">Add a person to start. Drag the yellow dots on the radar to set how they like to be written to.</p>';return}
+  if(!p){e.innerHTML='<p class="hint">Add a person to start. Pick the set of dials that fits them, then drag the yellow dots on the radar to set how they like to be written to.</p>';return}
+  const dials=setOf(p).dials;
   e.innerHTML=`
     <input type="text" id="nm" placeholder="Name" value="${esc(p.name)}">
+    <div class="field"><label for="setsel">Set of dials</label><select id="setsel">${setOptions(p.set)}</select></div>
     ${radar(p)}
-    ${DIALS.map(d=>`<div class="dial"><span>${d[1]}</span><input type="range" min="0" max="10" step="1" data-k="${d[0]}" value="${p.v[d[0]]}"><span id="val-${d[0]}" title="${esc(d[2])}">${p.v[d[0]]}</span></div>`).join('')}
+    ${dials.map((d,i)=>`<div class="dial"><span title="${esc(d[1])}">${esc(d[0])}</span><input type="range" min="0" max="10" step="1" data-i="${i}" value="${p.v[i]}"><span id="val-${i}" title="${esc(d[1])}">${p.v[i]}</span></div>`).join('')}
     <textarea id="nt" placeholder="Note (what they like, what to avoid)">${esc(p.note)}</textarea>
     <div class="row"><button class="b" id="cp">Copy brief for your AI</button><button class="b g" id="del">Delete person</button></div>
     <pre id="br"></pre>`;
   $('#br').textContent=brief(p);
   $('#nm').oninput=ev=>{p.name=ev.target.value;save();renderList();$('#br').textContent=brief(p)};
   $('#nt').oninput=ev=>{p.note=ev.target.value;save();$('#br').textContent=brief(p)};
-  e.querySelectorAll('input[type=range]').forEach(r=>r.oninput=()=>{p.v[r.dataset.k]=+r.value;save();sync(p)});
+  $('#setsel').onchange=ev=>{const id=ev.target.value;if(id===p.set)return;
+    ev.target.value=p.set;   // only the warning may change it
+    askChangeSet(p,id)};
+  e.querySelectorAll('input[type=range]').forEach(r=>r.oninput=()=>{p.v[+r.dataset.i]=+r.value;save();sync(p)});
   $('#cp').onclick=async()=>{try{await navigator.clipboard.writeText(brief(p));$('#cp').textContent='Copied'}catch(x){}};
   $('#del').onclick=()=>{if(confirm('Delete '+(p.name||'this person')+'?')){state.people=state.people.filter(q=>q!==p);state.current=state.people[0]?.id||null;save();render()}};
   const svg=$('#rd');let drag=null;
@@ -135,31 +254,38 @@ function renderEdit(){
   svg.onpointermove=ev=>{if(drag===null)return;
     const r=svg.getBoundingClientRect(),k=S/r.width,x=(ev.clientX-r.left)*k-C,y=(ev.clientY-r.top)*k-C;
     const a=ang(drag);
-    let v=(x*Math.cos(a)+y*Math.sin(a))/R*10;v=Math.max(0,Math.min(10,Math.round(v)));
-    if(p.v[DIALS[drag][0]]!==v){p.v[DIALS[drag][0]]=v;save();sync(p)}};
+    const v=clamp((x*Math.cos(a)+y*Math.sin(a))/R*10);
+    if(p.v[drag]!==v){p.v[drag]=v;save();sync(p)}};
   svg.onpointerup=svg.onpointercancel=()=>{drag=null};
 }
 
 function render(){renderList();renderEdit()}
 
+/* ---- adding a person: name and set together ---- */
 $('#add').onclick=()=>{
-  const v={};DIALS.forEach(d=>v[d[0]]=5);
-  const p={id:uid(),name:'',v,note:''};
-  state.people.push(p);state.current=p.id;save();render();$('#nm')?.focus();
+  modal(`<h2>Add a person</h2>
+    <div class="field"><label for="newname">Name</label><input type="text" id="newname" placeholder="Name"></div>
+    <div class="field"><label for="newset">Who are they to you? This picks the six dials.</label><select id="newset">${setOptions(DEFAULT_SET)}</select></div>
+    <p class="hint" id="newdials">${esc(dialNames(DEFAULT_SET))}</p>
+    <div class="row"><button class="b" id="okadd">Add person</button><button class="b g" id="noadd">Cancel</button></div>`);
+  $('#newset').onchange=ev=>{$('#newdials').textContent=dialNames(ev.target.value)};
+  $('#noadd').onclick=closeModal;
+  $('#okadd').onclick=()=>{
+    const p={id:uid(),name:$('#newname').value.trim(),set:$('#newset').value,v:freshValues(),note:''};
+    state.people.push(p);state.current=p.id;save();closeModal();render();$('#nm')?.focus();
+  };
+  $('#newname').focus();
 };
+
 $('#exp').onclick=()=>{
   const a=document.createElement('a');
-  a.href=URL.createObjectURL(new Blob([JSON.stringify(state,null,2)],{type:'application/json'}));
+  a.href=URL.createObjectURL(new Blob([JSON.stringify({version:2,people:state.people,current:state.current},null,2)],{type:'application/json'}));
   a.download='mark-my-words.json';a.click();
 };
 $('#imp').onchange=async ev=>{
   const f=ev.target.files[0];if(!f)return;
-  try{const s=JSON.parse(await f.text());if(!Array.isArray(s.people))throw 0;
-    const people=s.people.filter(p=>p&&typeof p==='object').map(p=>{const v={};
-      DIALS.forEach(d=>{const n=Number(p.v&&p.v[d[0]]);v[d[0]]=Number.isFinite(n)?Math.max(0,Math.min(10,Math.round(n))):5});
-      return{id:String(p.id||uid()),name:String(p.name==null?'':p.name),v,note:String(p.note==null?'':p.note)}});
-    state={people,current:people[0]?people[0].id:null};save();render();
-  }catch(x){alert('That file is not a Mark My Words export.')}
+  try{const s=normState(JSON.parse(await f.text()));if(!s)throw 0;state=s;save();render()}
+  catch(x){alert('That file is not a Mark My Words export.')}
   ev.target.value='';
 };
 render();
