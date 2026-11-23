@@ -42,6 +42,13 @@
   .ov[hidden]{display:none}
   .mod{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px;width:100%;max-width:440px}
   .warn{border-left:3px solid var(--y);padding-left:10px;margin:10px 0}
+  .tabs{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:14px;border-bottom:1px solid var(--line);padding-bottom:8px}
+  .tab{background:none;border:1px solid var(--line);color:var(--mut);border-radius:999px;padding:6px 12px;font:600 13px system-ui;cursor:pointer}
+  .tab.on{background:var(--y);color:#111;border-color:var(--y)}
+  .tab.plus{border-style:dashed;color:var(--fg)}
+  .setbar{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:10px;font-size:14px;color:var(--mut)}
+  .setbar button{white-space:nowrap;background:none;border:0;color:var(--mut);font:13px system-ui;cursor:pointer;text-decoration:underline;padding:0}
+  .setbar button:disabled{text-decoration:none;cursor:default;opacity:.6}
 </style>
 </head>
 <body>
@@ -60,12 +67,12 @@
   </aside>
   <section id="edit"></section>
 </main>
-<footer>A VRG app · <a href="https://vrg.li">vrg.li</a> · free to use, free to fork · <a href="https://github.com/vrgli/mark-my-words">source</a> · v0.2.1</footer>
+<footer>A VRG app · <a href="https://vrg.li">vrg.li</a> · free to use, free to fork · <a href="https://github.com/vrgli/mark-my-words">source</a> · v0.3</footer>
 
 <div class="ov" id="ov" hidden><div class="mod" id="mod"></div></div>
 
 <script>
-/* Seven fixed sets of six dials. A person belongs to exactly one set.
+/* Seven fixed sets of six dials. A person has one or more sets, each with its own six values.
    Every set and every dial carries its own icon.
    dial = [icon, label, hint, low (0-3), middle (4-6), high (7-10)] */
 const SETS=[
@@ -120,27 +127,34 @@ const SETS=[
   ['\u{1F3A9}','Formality','Polished, or casual like talking','Casual, like talking.','Clean and plain.','Polished and formal.']]}
 ];
 const DEFAULT_SET='colleagues';
-/* v0.1 stored six named values and no set. Those people load as Colleagues. */
+/* v0.1 stored six named values and no set. v0.2 stored one set per person (p.set, p.v).
+   v0.3 stores p.sets = [{set, v}], one entry per set the person has, and p.active, the tab shown. */
 const V1KEYS=['friendly','tech','busy','hierarchy','handholding','delegation'];
-const KEY='mmw-v2',OLDKEY='mmw-v1';
+const KEY='mmw-v3',OLDKEYS=['mmw-v2','mmw-v1'];
 
 const $=s=>document.querySelector(s);
 const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 const uid=()=>Math.random().toString(36).slice(2,10);
 const clamp=n=>Math.max(0,Math.min(10,Math.round(n)));
 const setById=id=>SETS.find(s=>s.id===id)||SETS[0];
-const setOf=p=>setById(p.set);
+const validSet=id=>typeof id==='string'&&SETS.some(s=>s.id===id);
 const freshValues=()=>[5,5,5,5,5,5];
+const normValues=raw=>{const v=[];for(let i=0;i<6;i++){const n=Number(Array.isArray(raw)?raw[i]:undefined);v.push(Number.isFinite(n)?clamp(n):5)}return v};
 
 function normPerson(p){
   p=p&&typeof p==='object'?p:{};
-  const set=(typeof p.set==='string'&&SETS.some(s=>s.id===p.set))?p.set:DEFAULT_SET;
-  let raw=[];
-  if(Array.isArray(p.v))raw=p.v;
-  else if(p.v&&typeof p.v==='object')raw=V1KEYS.map(k=>p.v[k]);   // a v0.1 person
-  const v=[];
-  for(let i=0;i<6;i++){const n=Number(raw[i]);v.push(Number.isFinite(n)?clamp(n):5)}
-  return{id:String(p.id||uid()),name:String(p.name==null?'':p.name),set,v,note:String(p.note==null?'':p.note)};
+  let sets=[];
+  if(Array.isArray(p.sets)){                                   // v0.3
+    const seen=new Set();
+    p.sets.forEach(e=>{if(e&&validSet(e.set)&&!seen.has(e.set)){seen.add(e.set);sets.push({set:e.set,v:normValues(e.v)})}});
+  }else if(p.v&&typeof p.v==='object'&&!Array.isArray(p.v)){   // v0.1: six named values, no set
+    sets=[{set:DEFAULT_SET,v:normValues(V1KEYS.map(k=>p.v[k]))}];
+  }else{                                                        // v0.2: one set, one array of values
+    sets=[{set:validSet(p.set)?p.set:DEFAULT_SET,v:normValues(p.v)}];
+  }
+  if(!sets.length)sets=[{set:DEFAULT_SET,v:freshValues()}];
+  const active=sets.some(e=>e.set===p.active)?p.active:sets[0].set;
+  return{id:String(p.id||uid()),name:String(p.name==null?'':p.name),sets,active,note:String(p.note==null?'':p.note)};
 }
 function normState(s){
   if(!s||!Array.isArray(s.people))return null;
@@ -149,21 +163,24 @@ function normState(s){
   return{people,current};
 }
 function load(){
-  for(const k of [KEY,OLDKEY]){
+  for(const k of [KEY].concat(OLDKEYS)){
     try{const s=normState(JSON.parse(localStorage.getItem(k)));if(s)return s}catch(e){}
   }
   return{people:[],current:null};
 }
 let state=load();
-function save(){localStorage.setItem(KEY,JSON.stringify({version:2,people:state.people,current:state.current}))}
+const payload=()=>({version:3,people:state.people,current:state.current});
+function save(){localStorage.setItem(KEY,JSON.stringify(payload()))}
 function cur(){return state.people.find(p=>p.id===state.current)}
+const entry=p=>p.sets.find(e=>e.set===p.active)||p.sets[0];   // the set shown in the tab
+const missingSets=p=>SETS.filter(s=>!p.sets.some(e=>e.set===s.id));
 
 /* ---- modal ---- */
 function modal(html){$('#mod').innerHTML=html;$('#ov').hidden=false}
 function closeModal(){$('#ov').hidden=true;$('#mod').innerHTML=''}
 $('#ov').onclick=ev=>{if(ev.target===$('#ov'))closeModal()};
 document.addEventListener('keydown',ev=>{if(ev.key==='Escape'&&!$('#ov').hidden)closeModal()});
-const setOptions=sel=>SETS.map(s=>`<option value="${s.id}"${s.id===sel?' selected':''}>${s.icon} ${esc(s.name)}</option>`).join('');
+const setOptions=(list,sel)=>list.map(s=>`<option value="${s.id}"${s.id===sel?' selected':''}>${s.icon} ${esc(s.name)}</option>`).join('');
 const setLabel=id=>{const s=setById(id);return s.icon+' '+s.name};
 const dialNames=id=>setById(id).dials.map(d=>d[0]+' '+d[1]).join(' · ');
 
@@ -173,7 +190,8 @@ function renderList(){
   state.people.forEach(p=>{
     const b=document.createElement('button');
     b.className='person'+(p.id===state.current?' on':'');
-    b.innerHTML=esc(p.name||'(unnamed)')+'<small>'+setOf(p).icon+' '+esc(setOf(p).name)+'</small>';
+    const subs=p.sets.map(e=>setById(e.set)).map(s=>s.icon+' '+esc(s.name)).join(' · ');
+    b.innerHTML=esc(p.name||'(unnamed)')+'<small>'+subs+'</small>';
     b.onclick=()=>{state.current=p.id;save();render()};
     l.appendChild(b);
   });
@@ -183,15 +201,15 @@ function renderList(){
 const S=300,C=S/2,R=92,N=6;
 const ang=i=>-Math.PI/2+i*2*Math.PI/N;
 const pt=(i,v)=>[C+Math.cos(ang(i))*R*v/10,C+Math.sin(ang(i))*R*v/10];
-const shapePts=p=>p.v.map((v,i)=>pt(i,v).join(',')).join(' ');
+const shapePts=e=>e.v.map((v,i)=>pt(i,v).join(',')).join(' ');
 function labelLines(t){
   if(t.length<=11||t.indexOf(' ')<0)return[t];
   const w=t.split(' ');let at=1,diff=1e9;
   for(let i=1;i<w.length;i++){const d=Math.abs(w.slice(0,i).join(' ').length-w.slice(i).join(' ').length);if(d<diff){diff=d;at=i}}
   return[w.slice(0,at).join(' '),w.slice(at).join(' ')];
 }
-function radar(p){
-  const dials=setOf(p).dials;let g='';
+function radar(e){
+  const dials=setById(e.set).dials;let g='';
   [2,4,6,8,10].forEach(r=>{g+=`<polygon points="${dials.map((_,i)=>pt(i,r).join(',')).join(' ')}" fill="none" stroke="#2c2c2c"/>`});
   dials.forEach((d,i)=>{
     const[x,y]=pt(i,10),[lx,ly]=pt(i,13.2);
@@ -200,58 +218,75 @@ function radar(p){
     g+=`<text x="${lx}" y="${ly}" fill="#9a9a94" font-size="10" text-anchor="middle" dominant-baseline="middle">`+
        parts.map((t,k)=>`<tspan x="${lx}"${k===0?' font-size="13"':''} dy="${k===0?-(parts.length-1)*5.5:11}">${esc(t)}</tspan>`).join('')+`</text>`;
   });
-  g+=`<polygon id="shape" points="${shapePts(p)}" fill="rgba(255,212,0,.25)" stroke="#ffd400" stroke-width="2"/>`;
-  p.v.forEach((v,i)=>{const[x,y]=pt(i,v);g+=`<circle data-i="${i}" cx="${x}" cy="${y}" r="9" fill="#ffd400" style="cursor:grab"/>`});
+  g+=`<polygon id="shape" points="${shapePts(e)}" fill="rgba(255,212,0,.25)" stroke="#ffd400" stroke-width="2"/>`;
+  e.v.forEach((v,i)=>{const[x,y]=pt(i,v);g+=`<circle data-i="${i}" cx="${x}" cy="${y}" r="9" fill="#ffd400" style="cursor:grab"/>`});
   return`<svg id="rd" viewBox="0 0 ${S} ${S}">${g}</svg>`;
 }
 
 /* Update radar, sliders and brief in place. The radar is never rebuilt while a dot
    is being dragged, otherwise the browser loses the drag after the first step. */
-function sync(p){
-  $('#shape').setAttribute('points',shapePts(p));
-  document.querySelectorAll('#rd circle[data-i]').forEach(c=>{const i=+c.dataset.i,[x,y]=pt(i,p.v[i]);c.setAttribute('cx',x);c.setAttribute('cy',y)});
-  document.querySelectorAll('#edit input[type=range]').forEach(r=>{const i=+r.dataset.i;r.value=p.v[i];$('#val-'+i).textContent=p.v[i]});
+function sync(p,e){
+  $('#shape').setAttribute('points',shapePts(e));
+  document.querySelectorAll('#rd circle[data-i]').forEach(c=>{const i=+c.dataset.i,[x,y]=pt(i,e.v[i]);c.setAttribute('cx',x);c.setAttribute('cy',y)});
+  document.querySelectorAll('#edit input[type=range]').forEach(r=>{const i=+r.dataset.i;r.value=e.v[i];$('#val-'+i).textContent=e.v[i]});
   $('#br').textContent=brief(p);
 }
 
+/* The brief covers every set the person has. */
 function brief(p){
-  const s=setOf(p);
-  const out=s.dials.map((d,i)=>{const v=p.v[i];return d[0]+' '+(v>=7?d[5]:v<=3?d[3]:d[4])});
-  return`${s.icon} Write to ${p.name||'this person'} — ${s.name} — like this:\n- `+out.join('\n- ')+(p.note?`\n\n📝 Note: ${p.note}`:'');
+  const who=p.name||'this person';
+  const block=e=>{const s=setById(e.set);
+    return s.icon+' '+s.name+':\n- '+s.dials.map((d,i)=>{const v=e.v[i];return d[0]+' '+(v>=7?d[5]:v<=3?d[3]:d[4])}).join('\n- ')};
+  return`Write to ${who} like this:\n\n`+p.sets.map(block).join('\n\n')+(p.note?`\n\n📝 Note: ${p.note}`:'');
 }
 
-/* ---- changing the set: warn, then reset every dial ---- */
-function askChangeSet(p,newId){
-  const to=setById(newId);
-  modal(`<h2>⚠️ Change the set?</h2>
-    <p>${esc(p.name||'This person')} is set to <strong>${setLabel(p.set)}</strong>. Changing to <strong>${setLabel(newId)}</strong> gives six different dials.</p>
-    <p class="warn"><strong>The current dial values will be lost.</strong> All six dials start again at 5, including any dial with the same name in both sets. This cannot be undone.</p>
-    <p class="hint">New dials: ${esc(dialNames(newId))}</p>
-    <div class="row"><button class="b" id="okset">Change set and reset dials</button><button class="b g" id="noset">Keep ${setLabel(p.set)}</button></div>`);
-  $('#okset').onclick=()=>{p.set=newId;p.v=freshValues();save();closeModal();render()};
-  $('#noset').onclick=()=>{closeModal();render()};
+/* ---- adding a set to a person: the other sets are untouched ---- */
+function askAddSet(p){
+  const free=missingSets(p);if(!free.length)return;
+  modal(`<h2>➕ Add a set to ${esc(p.name||'this person')}</h2>
+    <div class="field"><label for="addsel">Who else are they to you? This adds six more dials, starting at 5.</label><select id="addsel">${setOptions(free,free[0].id)}</select></div>
+    <p class="hint" id="adddials">${esc(dialNames(free[0].id))}</p>
+    <p class="hint">The sets ${esc(p.name||'this person')} already has keep their values.</p>
+    <div class="row"><button class="b" id="okadd">Add set</button><button class="b g" id="noadd">Cancel</button></div>`);
+  $('#addsel').onchange=ev=>{$('#adddials').textContent=dialNames(ev.target.value)};
+  $('#noadd').onclick=closeModal;
+  $('#okadd').onclick=()=>{const id=$('#addsel').value;if(p.sets.some(e=>e.set===id))return;
+    p.sets.push({set:id,v:freshValues()});p.active=id;save();closeModal();render()};
+}
+
+/* ---- removing a set: warn, then drop it; a person always keeps at least one ---- */
+function askRemoveSet(p,id){
+  if(p.sets.length<2)return;
+  const keep=p.sets.filter(e=>e.set!==id).map(e=>setLabel(e.set)).join(', ');
+  modal(`<h2>⚠️ Remove the set ${setLabel(id)}?</h2>
+    <p>${esc(p.name||'This person')} keeps ${esc(keep)}. Those values are not touched.</p>
+    <p class="warn"><strong>The six dial values of ${setLabel(id)} will be lost.</strong> This cannot be undone.</p>
+    <div class="row"><button class="b" id="okrm">Remove set</button><button class="b g" id="norm">Keep it</button></div>`);
+  $('#okrm').onclick=()=>{p.sets=p.sets.filter(e=>e.set!==id);p.active=p.sets[0].set;save();closeModal();render()};
+  $('#norm').onclick=closeModal;
 }
 
 /* ---- editor ---- */
 function renderEdit(){
-  const e=$('#edit'),p=cur();
-  if(!p){e.innerHTML='<p class="hint">Add a person to start. Pick the set of dials that fits them, then drag the yellow dots on the radar to set how they like to be written to.</p>';return}
-  const dials=setOf(p).dials;
-  e.innerHTML=`
+  const el=$('#edit'),p=cur();
+  if(!p){el.innerHTML='<p class="hint">Add a person to start. Pick the set of dials that fits them, then drag the yellow dots on the radar to set how they like to be written to. A person can have more than one set: add another with the + tab.</p>';return}
+  const e=entry(p),s=setById(e.set),dials=s.dials,free=missingSets(p);
+  el.innerHTML=`
     <input type="text" id="nm" placeholder="Name" value="${esc(p.name)}">
-    <div class="field"><label for="setsel">Set of dials</label><select id="setsel">${setOptions(p.set)}</select></div>
-    ${radar(p)}
-    ${dials.map((d,i)=>`<div class="dial"><span title="${esc(d[2])}"><i>${d[0]}</i>${esc(d[1])}</span><input type="range" min="0" max="10" step="1" data-i="${i}" value="${p.v[i]}"><span id="val-${i}" title="${esc(d[2])}">${p.v[i]}</span></div>`).join('')}
+    <div class="tabs" role="tablist">${p.sets.map(x=>{const t=setById(x.set);return`<button class="tab${x.set===e.set?' on':''}" role="tab" data-set="${t.id}" aria-selected="${x.set===e.set}">${t.icon} ${esc(t.name)}</button>`}).join('')}${free.length?'<button class="tab plus" id="addset" title="Add another set">+ Add set</button>':''}</div>
+    <div class="setbar"><span>${s.icon} ${esc(s.name)}: six dials of their own</span><button id="rmset"${p.sets.length<2?' disabled title="A person keeps at least one set"':''}>Remove this set</button></div>
+    ${radar(e)}
+    ${dials.map((d,i)=>`<div class="dial"><span title="${esc(d[2])}"><i>${d[0]}</i>${esc(d[1])}</span><input type="range" min="0" max="10" step="1" data-i="${i}" value="${e.v[i]}"><span id="val-${i}" title="${esc(d[2])}">${e.v[i]}</span></div>`).join('')}
     <textarea id="nt" placeholder="Note (what they like, what to avoid)">${esc(p.note)}</textarea>
     <div class="row"><button class="b" id="cp">Copy brief for your AI</button><button class="b g" id="del">Delete person</button></div>
     <pre id="br"></pre>`;
   $('#br').textContent=brief(p);
   $('#nm').oninput=ev=>{p.name=ev.target.value;save();renderList();$('#br').textContent=brief(p)};
   $('#nt').oninput=ev=>{p.note=ev.target.value;save();$('#br').textContent=brief(p)};
-  $('#setsel').onchange=ev=>{const id=ev.target.value;if(id===p.set)return;
-    ev.target.value=p.set;   // only the warning may change it
-    askChangeSet(p,id)};
-  e.querySelectorAll('input[type=range]').forEach(r=>r.oninput=()=>{p.v[+r.dataset.i]=+r.value;save();sync(p)});
+  el.querySelectorAll('.tab[data-set]').forEach(b=>b.onclick=()=>{p.active=b.dataset.set;save();renderEdit()});
+  if($('#addset'))$('#addset').onclick=()=>askAddSet(p);
+  $('#rmset').onclick=()=>askRemoveSet(p,e.set);
+  el.querySelectorAll('input[type=range]').forEach(r=>r.oninput=()=>{e.v[+r.dataset.i]=+r.value;save();sync(p,e)});
   $('#cp').onclick=async()=>{try{await navigator.clipboard.writeText(brief(p));$('#cp').textContent='Copied'}catch(x){}};
   $('#del').onclick=()=>{if(confirm('Delete '+(p.name||'this person')+'?')){state.people=state.people.filter(q=>q!==p);state.current=state.people[0]?.id||null;save();render()}};
   const svg=$('#rd');let drag=null;
@@ -260,23 +295,24 @@ function renderEdit(){
     const r=svg.getBoundingClientRect(),k=S/r.width,x=(ev.clientX-r.left)*k-C,y=(ev.clientY-r.top)*k-C;
     const a=ang(drag);
     const v=clamp((x*Math.cos(a)+y*Math.sin(a))/R*10);
-    if(p.v[drag]!==v){p.v[drag]=v;save();sync(p)}};
+    if(e.v[drag]!==v){e.v[drag]=v;save();sync(p,e)}};
   svg.onpointerup=svg.onpointercancel=()=>{drag=null};
 }
 
 function render(){renderList();renderEdit()}
 
-/* ---- adding a person: name and set together ---- */
+/* ---- adding a person: name and first set together; more sets can be added later ---- */
 $('#add').onclick=()=>{
   modal(`<h2>👤 Add a person</h2>
     <div class="field"><label for="newname">Name</label><input type="text" id="newname" placeholder="Name"></div>
-    <div class="field"><label for="newset">Who are they to you? This picks the six dials.</label><select id="newset">${setOptions(DEFAULT_SET)}</select></div>
+    <div class="field"><label for="newset">Who are they to you? This picks the six dials. You can add more sets later.</label><select id="newset">${setOptions(SETS,DEFAULT_SET)}</select></div>
     <p class="hint" id="newdials">${esc(dialNames(DEFAULT_SET))}</p>
     <div class="row"><button class="b" id="okadd">Add person</button><button class="b g" id="noadd">Cancel</button></div>`);
   $('#newset').onchange=ev=>{$('#newdials').textContent=dialNames(ev.target.value)};
   $('#noadd').onclick=closeModal;
   $('#okadd').onclick=()=>{
-    const p={id:uid(),name:$('#newname').value.trim(),set:$('#newset').value,v:freshValues(),note:''};
+    const id=$('#newset').value;
+    const p={id:uid(),name:$('#newname').value.trim(),sets:[{set:id,v:freshValues()}],active:id,note:''};
     state.people.push(p);state.current=p.id;save();closeModal();render();$('#nm')?.focus();
   };
   $('#newname').focus();
@@ -284,7 +320,7 @@ $('#add').onclick=()=>{
 
 $('#exp').onclick=()=>{
   const a=document.createElement('a');
-  a.href=URL.createObjectURL(new Blob([JSON.stringify({version:2,people:state.people,current:state.current},null,2)],{type:'application/json'}));
+  a.href=URL.createObjectURL(new Blob([JSON.stringify(payload(),null,2)],{type:'application/json'}));
   a.download='mark-my-words.json';a.click();
 };
 $('#imp').onchange=async ev=>{

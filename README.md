@@ -5,7 +5,8 @@
 Six dials per person on a radar you drag, plus a note. It turns them into a short brief, so you,
 or your AI, write to each person the way they like to be written to.
 
-Which six dials depends on who the person is to you. Pick one of seven sets when you add them:
+Which six dials depends on who the person is to you. Pick one of seven sets when you add them,
+and add more sets later: a colleague who is also a friend gets both, each with its own six dials.
 
 | Set | The six dials |
 |---|---|
@@ -22,7 +23,7 @@ Every set and every dial has its own icon, on the radar, on the sliders and in t
 Local-first: no sign-in, no server, no telemetry. Your data stays in your browser and in a JSON
 file you export and own.
 
-**Status: v0.2.1 is out.**
+**Status: v0.3 is out.**
 
 - **Try it:** https://vrgli.github.io/mark-my-words/
 - **Download:** the zip on the [Releases](https://github.com/vrgli/mark-my-words/releases) page
@@ -34,9 +35,12 @@ to build. Add a person, pick the set that fits them, drag the yellow dots on the
 sliders), and copy the brief for your AI. **Export JSON** saves everyone to a file; **Import JSON**
 brings them back.
 
-You can change someone's set later. Because the six dials are different, the app warns you first
-and then starts all six at 5 again: nothing is carried over. People saved with v0.1, in the browser
-or in an exported file, open as **Colleagues** with their values intact.
+A person can have several sets at once. Each set is a tab above the radar with its own six dials,
+its own radar and its own sliders. **+ Add set** adds another of the seven (the sets they already
+have are not touched); **Remove this set** drops one after a warning that its six values will be
+lost. A person always keeps at least one set. The brief you copy covers every set the person has.
+People saved with v0.1 or v0.2, in the browser or in an exported file, open with the one set they
+had and their values intact.
 
 ## Fork it
 
